@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: power-supply-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql_root_password
+      MYSQL_DATABASE: power_supply_db
+      MYSQL_USER: psd
+      MYSQL_PASSWORD: mysql_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - power-supply-network
+
+  # Go 应用
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: power-supply-app
+    restart: unless-stopped
+    environment:
+      APP_ENV: test
+    ports:
+      - "9091:9091"
+    depends_on:
+      - mysql
+    networks:
+      - power-supply-network
+    volumes:
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql_data:
+
+networks:
+  power-supply-network:
+    driver: bridge
+
