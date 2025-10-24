@@ -11,3 +11,7 @@ jwt:
 log:
   level: "info"
   file_path: "./logs/app.log"
+server:
+  read_timeout: 30
+  write_timeout: 30
+  idle_timeout: 120

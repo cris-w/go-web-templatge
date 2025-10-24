@@ -16,15 +16,11 @@ type Handler struct {
 }
 
 // NewHandler 创建用户处理器
-func NewHandler(service Service) *Handler {
+func NewHandler(service Service, jwtManager *auth.JWTManager) *Handler {
 	return &Handler{
-		service: service,
+		service:    service,
+		jwtManager: jwtManager,
 	}
-}
-
-// SetJWTManager 设置 JWT 管理器
-func (h *Handler) SetJWTManager(jwtManager *auth.JWTManager) {
-	h.jwtManager = jwtManager
 }
 
 // Create 创建用户

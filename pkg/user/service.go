@@ -28,15 +28,10 @@ type service struct {
 var _ Service = &service{}
 
 // NewService 创建用户服务
-func NewService(db *gorm.DB) (Service, error) {
-	// 执行数据库迁移
-	if err := AutoMigrate(db); err != nil {
-		return nil, err
-	}
-
+func NewService(db *gorm.DB) Service {
 	return &service{
 		repo: NewRepository(db),
-	}, nil
+	}
 }
 
 // Create 创建用户

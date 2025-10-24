@@ -18,13 +18,10 @@ import (
 
 // App 应用结构体
 type App struct {
-	Config       *Config
-	DB           *gorm.DB
-	Router       *gin.Engine
-	Server       *http.Server
-	UserService  user.Service
-	PowerService power.Service
-	JWTManager   *auth.JWTManager
+	config *Config
+	db     *gorm.DB
+	router *gin.Engine
+	server *http.Server
 }
 
 // New 创建新的应用实例
@@ -36,7 +33,7 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("加载配置失败: %w", err)
 	}
-	app.Config = config
+	app.config = config
 
 	// 2. 初始化日志系统
 	if err := app.initLogger(); err != nil {
@@ -45,24 +42,20 @@ func New() (*App, error) {
 	logger.Info("Logger initialized successfully")
 
 	// 3. 初始化数据库
-	db, err := app.initDatabase()
+	db, err := InitDatabase(config)
 	if err != nil {
 		return nil, fmt.Errorf("初始化数据库失败: %w", err)
 	}
-	app.DB = db
+	app.db = db
 	logger.Info("Database initialized successfully")
 
-	// 4. 初始化 JWT 管理器
-	app.initJWT()
-	logger.Info("JWT manager initialized successfully")
-
-	// 5. 初始化服务(包含数据库迁移)
-	if err := app.initServices(); err != nil {
-		return nil, fmt.Errorf("初始化服务失败: %w", err)
+	// 4. 执行数据库迁移
+	if err := app.migrate(); err != nil {
+		return nil, fmt.Errorf("数据库迁移失败: %w", err)
 	}
-	logger.Info("Services initialized successfully")
+	logger.Info("Database migration completed")
 
-	// 6. 设置路由
+	// 5. 设置路由
 	app.setupRouter()
 	logger.Info("Router setup completed")
 
@@ -72,53 +65,52 @@ func New() (*App, error) {
 // initLogger 初始化日志系统
 func (a *App) initLogger() error {
 	logConfig := &logger.Config{
-		Level:      a.Config.Log.Level,
-		FilePath:   a.Config.Log.FilePath,
+		Level:      a.config.Log.Level,
+		FilePath:   a.config.Log.FilePath,
 		MaxSize:    100,
 		MaxBackups: 7,
 		MaxAge:     30,
 		Compress:   true,
-		Debug:      a.Config.Debug,
+		Debug:      a.config.Debug,
 	}
 	return logger.Init(logConfig)
 }
 
-// initDatabase 初始化数据库连接
-func (a *App) initDatabase() (*gorm.DB, error) {
-	db, err := InitDatabase(a.Config)
-	if err != nil {
-		return nil, err
+// migrate 执行数据库迁移
+func (a *App) migrate() error {
+	// 迁移用户表
+	if err := user.AutoMigrate(a.db); err != nil {
+		return fmt.Errorf("用户表迁移失败: %w", err)
 	}
-	return db, nil
-}
 
-// initJWT 初始化 JWT 管理器
-func (a *App) initJWT() {
-	a.JWTManager = auth.NewJWTManager(a.Config.JWT.Secret, a.Config.JWT.ExpireHours)
-}
-
-// initServices 初始化所有服务
-func (a *App) initServices() error {
-	// 初始化用户服务(包含数据库迁移)
-	userService, err := user.NewService(a.DB)
-	if err != nil {
-		return fmt.Errorf("初始化用户服务失败: %w", err)
+	// 迁移电源表
+	if err := power.AutoMigrate(a.db); err != nil {
+		return fmt.Errorf("电源表迁移失败: %w", err)
 	}
-	a.UserService = userService
-
-	// 初始化电源服务(包含数据库迁移)
-	powerService, err := power.NewService(a.DB)
-	if err != nil {
-		return fmt.Errorf("初始化电源服务失败: %w", err)
-	}
-	a.PowerService = powerService
 
 	return nil
 }
 
+// healthCheckHandler 健康检查处理函数
+func (a *App) healthCheckHandler(c *gin.Context) {
+	health := gin.H{
+		"status":   "ok",
+		"database": "disconnected",
+	}
+
+	// 检查数据库连接
+	if sqlDB, err := a.db.DB(); err == nil {
+		if err := sqlDB.Ping(); err == nil {
+			health["database"] = "connected"
+		}
+	}
+
+	common.SuccessResponse(c, health)
+}
+
 // setupRouter 设置路由
 func (a *App) setupRouter() {
-	if !a.Config.Debug {
+	if !a.config.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -130,75 +122,94 @@ func (a *App) setupRouter() {
 	r.Use(middleware.CORS())
 
 	// 健康检查
-	r.GET("/health", func(c *gin.Context) {
-		health := gin.H{
-			"status":   "ok",
-			"database": "disconnected",
-		}
+	r.GET("/health", a.healthCheckHandler)
 
-		// 检查数据库连接
-		if sqlDB, err := a.DB.DB(); err == nil {
-			if err := sqlDB.Ping(); err == nil {
-				health["database"] = "connected"
-			}
-		}
+	// 创建 JWT 管理器（依赖注入）
+	jwtManager := auth.NewJWTManager(a.config.JWT.Secret, a.config.JWT.ExpireHours)
 
-		common.SuccessResponse(c, health)
-	})
+	// 初始化 Services（整个应用共享）
+	userService := user.NewService(a.db)
+	powerService := power.NewService(a.db)
 
+	// 初始化 Handlers（整个应用共享）
+	userHandler := user.NewHandler(userService, jwtManager)
+	powerHandler := power.NewHandler(powerService)
+
+	// 注册 API 路由
+	a.registerAPIRoutes(r, userHandler, powerHandler, jwtManager)
+
+	a.router = r
+}
+
+// registerAPIRoutes 注册 API 路由
+func (a *App) registerAPIRoutes(r *gin.Engine, userHandler *user.Handler, powerHandler *power.Handler, jwtManager *auth.JWTManager) {
 	// API v1 路由组
 	v1 := r.Group("/api/v1")
 	{
 		// 认证相关路由（无需JWT验证）
-		authGroup := v1.Group("/auth")
-		{
-			userHandler := user.NewHandler(a.UserService)
-			userHandler.SetJWTManager(a.JWTManager)
-			authGroup.POST("/login", userHandler.Login)
-			authGroup.POST("/register", userHandler.Create)
-		}
+		a.registerAuthRoutes(v1, userHandler)
 
 		// 需要JWT认证的路由
 		authorized := v1.Group("")
-		authorized.Use(middleware.JWTAuth(a.JWTManager))
+		authorized.Use(middleware.JWTAuth(jwtManager))
 		{
-			// 用户相关路由
-			userHandler := user.NewHandler(a.UserService)
-			userGroup := authorized.Group("/users")
-			{
-				userGroup.GET("", userHandler.List)
-				userGroup.GET("/:id", userHandler.Get)
-				userGroup.PUT("/:id", userHandler.Update)
-				userGroup.DELETE("/:id", userHandler.Delete)
-			}
-
-			// 电源相关路由
-			powerHandler := power.NewHandler(a.PowerService)
-			powerGroup := authorized.Group("/powers")
-			{
-				powerGroup.GET("", powerHandler.List)
-				powerGroup.GET("/:id", powerHandler.Get)
-				powerGroup.POST("", powerHandler.Create)
-				powerGroup.PUT("/:id", powerHandler.Update)
-				powerGroup.DELETE("/:id", powerHandler.Delete)
-			}
+			a.registerUserRoutes(authorized, userHandler)
+			a.registerPowerRoutes(authorized, powerHandler)
 		}
 	}
+}
 
-	a.Router = r
+// registerAuthRoutes 注册认证路由
+func (a *App) registerAuthRoutes(rg *gin.RouterGroup, handler *user.Handler) {
+	authGroup := rg.Group("/auth")
+	{
+		authGroup.POST("/login", handler.Login)
+		authGroup.POST("/register", handler.Create)
+	}
+}
+
+// registerUserRoutes 注册用户路由
+func (a *App) registerUserRoutes(rg *gin.RouterGroup, handler *user.Handler) {
+	userGroup := rg.Group("/users")
+	{
+		userGroup.GET("", handler.List)
+		userGroup.GET("/:id", handler.Get)
+		userGroup.PUT("/:id", handler.Update)
+		userGroup.DELETE("/:id", handler.Delete)
+	}
+}
+
+// registerPowerRoutes 注册电源路由
+func (a *App) registerPowerRoutes(rg *gin.RouterGroup, handler *power.Handler) {
+	powerGroup := rg.Group("/powers")
+	{
+		powerGroup.GET("", handler.List)
+		powerGroup.GET("/:id", handler.Get)
+		powerGroup.POST("", handler.Create)
+		powerGroup.PUT("/:id", handler.Update)
+		powerGroup.DELETE("/:id", handler.Delete)
+	}
 }
 
 // Run 启动应用
 func (a *App) Run() error {
-	a.Server = &http.Server{
-		Addr:    a.Config.Addr,
-		Handler: a.Router,
+	a.server = &http.Server{
+		Addr:         a.config.Addr,
+		Handler:      a.router,
+		ReadTimeout:  a.config.Server.GetReadTimeout(),
+		WriteTimeout: a.config.Server.GetWriteTimeout(),
+		IdleTimeout:  a.config.Server.GetIdleTimeout(),
 	}
 
-	logger.Info("Starting server", zap.String("addr", a.Config.Addr))
+	logger.Info("Starting server",
+		zap.String("addr", a.config.Addr),
+		zap.Duration("read_timeout", a.config.Server.GetReadTimeout()),
+		zap.Duration("write_timeout", a.config.Server.GetWriteTimeout()),
+		zap.Duration("idle_timeout", a.config.Server.GetIdleTimeout()),
+	)
 
 	// ListenAndServe 会阻塞直到出现错误或调用 Shutdown
-	if err := a.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("Server start failed", zap.Error(err))
 		return fmt.Errorf("服务器启动失败: %w", err)
 	}
@@ -211,8 +222,8 @@ func (a *App) Shutdown(ctx context.Context) error {
 	logger.Info("Shutting down server...")
 
 	// 关闭 HTTP 服务器
-	if a.Server != nil {
-		if err := a.Server.Shutdown(ctx); err != nil {
+	if a.server != nil {
+		if err := a.server.Shutdown(ctx); err != nil {
 			logger.Error("Failed to shutdown server", zap.Error(err))
 			return fmt.Errorf("服务器关闭失败: %w", err)
 		}
@@ -220,8 +231,8 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 
 	// 关闭数据库连接
-	if a.DB != nil {
-		sqlDB, err := a.DB.DB()
+	if a.db != nil {
+		sqlDB, err := a.db.DB()
 		if err != nil {
 			logger.Error("Failed to get DB instance", zap.Error(err))
 			return fmt.Errorf("获取数据库连接失败: %w", err)

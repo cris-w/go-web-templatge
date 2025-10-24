@@ -1,4 +1,4 @@
-.PHONY: run build clean test docker-build docker-run
+.PHONY: run build clean test test-cover test-coverage test-coverage-html test-nocache test-race docker-build docker-run
 
 # 运行项目
 run:
@@ -15,7 +15,30 @@ clean:
 
 # 运行测试
 test:
-	go test -v ./...
+	go test -v ./pkg/...
+
+# 运行测试（显示覆盖率）
+test-cover:
+	go test -v -cover ./pkg/...
+
+# 生成覆盖率报告
+test-coverage:
+	go test ./pkg/... -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+
+# 生成HTML覆盖率报告
+test-coverage-html:
+	go test ./pkg/... -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+# 运行测试（禁用缓存）
+test-nocache:
+	go test -v -count=1 ./pkg/...
+
+# 运行竞态检测
+test-race:
+	go test -race ./pkg/...
 
 # 下载依赖
 deps:
@@ -29,6 +52,14 @@ docker-build:
 # 运行 Docker 容器
 docker-run:
 	docker run -d -p 8080:8080 --name power-supply-sys power-supply-sys:latest
+
+# 运行 Docker compose
+docker-compose:
+	docker compose -f deployment/docker-compose.yml up -d
+
+# 运行 Docker compose
+docker-compose-build:
+	docker compose -f deployment/docker-compose.yml up -d --build app
 
 # 开发环境运行
 dev:

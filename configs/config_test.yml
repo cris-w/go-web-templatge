@@ -11,3 +11,7 @@ jwt:
 log:
   level: "debug"
   file_path: "./logs/app_test.log"
+server:
+  read_timeout: 10
+  write_timeout: 10
+  idle_timeout: 60
