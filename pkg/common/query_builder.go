@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"reflect"
 
 	"gorm.io/gorm"
 )
@@ -20,14 +21,14 @@ func ApplyQuery(db *gorm.DB, opts ...QueryOption) *gorm.DB {
 // ============ 基础查询条件 ============
 
 // Where 等值查询
-func Where(field string, value interface{}) QueryOption {
+func Where(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s = ?", field), value)
 	}
 }
 
 // WhereIn IN 查询
-func WhereIn(field string, values interface{}) QueryOption {
+func WhereIn(field string, values any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s IN ?", field), values)
 	}
@@ -44,35 +45,35 @@ func WhereLike(field, value string) QueryOption {
 }
 
 // WhereBetween 区间查询
-func WhereBetween(field string, min, max interface{}) QueryOption {
+func WhereBetween(field string, min, max any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s BETWEEN ? AND ?", field), min, max)
 	}
 }
 
 // WhereGTE 大于等于
-func WhereGTE(field string, value interface{}) QueryOption {
+func WhereGTE(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s >= ?", field), value)
 	}
 }
 
 // WhereLTE 小于等于
-func WhereLTE(field string, value interface{}) QueryOption {
+func WhereLTE(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s <= ?", field), value)
 	}
 }
 
 // WhereGT 大于
-func WhereGT(field string, value interface{}) QueryOption {
+func WhereGT(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s > ?", field), value)
 	}
 }
 
 // WhereLT 小于
-func WhereLT(field string, value interface{}) QueryOption {
+func WhereLT(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(fmt.Sprintf("%s < ?", field), value)
 	}
@@ -94,8 +95,21 @@ func WhereNull(field string) QueryOption {
 
 // ============ 条件查询(智能过滤) ============
 
+// isNil 正确检查值是否为nil（包括接口中包含nil指针的情况）
+func isNil(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return rv.IsNil()
+	}
+	return false
+}
+
 // WhereIf 条件为真时才添加查询
-func WhereIf(condition bool, field string, value interface{}) QueryOption {
+func WhereIf(condition bool, field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		if condition {
 			return db.Where(fmt.Sprintf("%s = ?", field), value)
@@ -115,9 +129,9 @@ func WhereLikeIf(condition bool, field, value string) QueryOption {
 }
 
 // WhereIfNotNil 值不为nil时才添加查询
-func WhereIfNotNil(field string, value interface{}) QueryOption {
+func WhereIfNotNil(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
-		if value != nil {
+		if !isNil(value) {
 			return db.Where(fmt.Sprintf("%s = ?", field), value)
 		}
 		return db
@@ -125,9 +139,9 @@ func WhereIfNotNil(field string, value interface{}) QueryOption {
 }
 
 // WhereGTEIfNotNil 值不为nil时才添加大于等于查询
-func WhereGTEIfNotNil(field string, value interface{}) QueryOption {
+func WhereGTEIfNotNil(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
-		if value != nil {
+		if !isNil(value) {
 			return db.Where(fmt.Sprintf("%s >= ?", field), value)
 		}
 		return db
@@ -135,9 +149,9 @@ func WhereGTEIfNotNil(field string, value interface{}) QueryOption {
 }
 
 // WhereLTEIfNotNil 值不为nil时才添加小于等于查询
-func WhereLTEIfNotNil(field string, value interface{}) QueryOption {
+func WhereLTEIfNotNil(field string, value any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
-		if value != nil {
+		if !isNil(value) {
 			return db.Where(fmt.Sprintf("%s <= ?", field), value)
 		}
 		return db
@@ -200,14 +214,14 @@ func Offset(offset int) QueryOption {
 // ============ 关联查询 ============
 
 // Preload 预加载关联
-func Preload(query string, args ...interface{}) QueryOption {
+func Preload(query string, args ...any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Preload(query, args...)
 	}
 }
 
 // Joins 连接查询
-func Joins(query string, args ...interface{}) QueryOption {
+func Joins(query string, args ...any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Joins(query, args...)
 	}
@@ -223,7 +237,7 @@ func GroupBy(field string) QueryOption {
 }
 
 // Having HAVING 子句
-func Having(query string, args ...interface{}) QueryOption {
+func Having(query string, args ...any) QueryOption {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Having(query, args...)
 	}

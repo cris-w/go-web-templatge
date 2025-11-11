@@ -4,6 +4,7 @@ import (
 	"power-supply-sys/pkg/auth"
 	"power-supply-sys/pkg/common"
 	"power-supply-sys/pkg/logger"
+	httputil "power-supply-sys/internal/transport/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,7 @@ func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			logger.Warn("Missing authorization header", zap.String("path", c.Request.URL.Path))
-			common.HandleError(c, common.ErrUnauthorized(""))
+			httputil.HandleError(c, common.ErrUnauthorized(""))
 			c.Abort()
 			return
 		}
@@ -33,7 +34,7 @@ func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			logger.Warn("Invalid authorization header format", zap.String("header", authHeader))
-			common.HandleError(c, common.ErrInvalidToken())
+			httputil.HandleError(c, common.ErrInvalidToken())
 			c.Abort()
 			return
 		}
@@ -44,7 +45,7 @@ func JWTAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		claims, err := jwtManager.ParseToken(tokenString)
 		if err != nil {
 			logger.Warn("Failed to parse token", zap.Error(err))
-			common.HandleError(c, common.ErrInvalidToken())
+			httputil.HandleError(c, common.ErrInvalidToken())
 			c.Abort()
 			return
 		}
@@ -100,3 +101,4 @@ func MustGetUsername(c *gin.Context) string {
 	}
 	return username
 }
+

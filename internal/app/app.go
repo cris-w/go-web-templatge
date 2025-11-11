@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"power-supply-sys/internal/app/middleware"
+	"power-supply-sys/internal/domain/power"
+	"power-supply-sys/internal/domain/user"
+	"power-supply-sys/internal/infra/db"
+	"power-supply-sys/internal/service"
+	httputil "power-supply-sys/internal/transport/http"
+	httphandler "power-supply-sys/internal/transport/http/handler"
+	httpmiddleware "power-supply-sys/internal/transport/http/middleware"
 	"power-supply-sys/pkg/auth"
-	"power-supply-sys/pkg/common"
 	"power-supply-sys/pkg/logger"
-	"power-supply-sys/pkg/power"
-	"power-supply-sys/pkg/user"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -42,11 +45,18 @@ func New() (*App, error) {
 	logger.Info("Logger initialized successfully")
 
 	// 3. 初始化数据库
-	db, err := InitDatabase(config)
+	dbConfig := &db.Config{
+		DSN:             config.DB.DSN,
+		MaxIdleConns:    config.DB.MaxIdleConns,
+		MaxOpenConns:    config.DB.MaxOpenConns,
+		ConnMaxLifetime: config.DB.GetConnMaxLifetime(),
+		Debug:           config.Debug,
+	}
+	database, err := db.InitDatabase(dbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("初始化数据库失败: %w", err)
 	}
-	app.db = db
+	app.db = database
 	logger.Info("Database initialized successfully")
 
 	// 4. 执行数据库迁移
@@ -105,7 +115,7 @@ func (a *App) healthCheckHandler(c *gin.Context) {
 		}
 	}
 
-	common.SuccessResponse(c, health)
+	httputil.SuccessResponse(c, health)
 }
 
 // setupRouter 设置路由
@@ -117,9 +127,9 @@ func (a *App) setupRouter() {
 	r := gin.New()
 
 	// 使用中间件
-	r.Use(middleware.Logger())
-	r.Use(middleware.Recovery())
-	r.Use(middleware.CORS())
+	r.Use(httpmiddleware.Logger())
+	r.Use(httpmiddleware.Recovery())
+	r.Use(httpmiddleware.CORS())
 
 	// 健康检查
 	r.GET("/health", a.healthCheckHandler)
@@ -128,12 +138,12 @@ func (a *App) setupRouter() {
 	jwtManager := auth.NewJWTManager(a.config.JWT.Secret, a.config.JWT.ExpireHours)
 
 	// 初始化 Services（整个应用共享）
-	userService := user.NewService(a.db)
-	powerService := power.NewService(a.db)
+	userService := service.NewUserService(a.db)
+	powerService := service.NewPowerService(a.db)
 
 	// 初始化 Handlers（整个应用共享）
-	userHandler := user.NewHandler(userService, jwtManager)
-	powerHandler := power.NewHandler(powerService)
+	userHandler := httphandler.NewUserHandler(userService, jwtManager)
+	powerHandler := httphandler.NewPowerHandler(powerService)
 
 	// 注册 API 路由
 	a.registerAPIRoutes(r, userHandler, powerHandler, jwtManager)
@@ -142,7 +152,7 @@ func (a *App) setupRouter() {
 }
 
 // registerAPIRoutes 注册 API 路由
-func (a *App) registerAPIRoutes(r *gin.Engine, userHandler *user.Handler, powerHandler *power.Handler, jwtManager *auth.JWTManager) {
+func (a *App) registerAPIRoutes(r *gin.Engine, userHandler *httphandler.UserHandler, powerHandler *httphandler.PowerHandler, jwtManager *auth.JWTManager) {
 	// API v1 路由组
 	v1 := r.Group("/api/v1")
 	{
@@ -151,7 +161,7 @@ func (a *App) registerAPIRoutes(r *gin.Engine, userHandler *user.Handler, powerH
 
 		// 需要JWT认证的路由
 		authorized := v1.Group("")
-		authorized.Use(middleware.JWTAuth(jwtManager))
+		authorized.Use(httpmiddleware.JWTAuth(jwtManager))
 		{
 			a.registerUserRoutes(authorized, userHandler)
 			a.registerPowerRoutes(authorized, powerHandler)
@@ -160,7 +170,7 @@ func (a *App) registerAPIRoutes(r *gin.Engine, userHandler *user.Handler, powerH
 }
 
 // registerAuthRoutes 注册认证路由
-func (a *App) registerAuthRoutes(rg *gin.RouterGroup, handler *user.Handler) {
+func (a *App) registerAuthRoutes(rg *gin.RouterGroup, handler *httphandler.UserHandler) {
 	authGroup := rg.Group("/auth")
 	{
 		authGroup.POST("/login", handler.Login)
@@ -169,7 +179,7 @@ func (a *App) registerAuthRoutes(rg *gin.RouterGroup, handler *user.Handler) {
 }
 
 // registerUserRoutes 注册用户路由
-func (a *App) registerUserRoutes(rg *gin.RouterGroup, handler *user.Handler) {
+func (a *App) registerUserRoutes(rg *gin.RouterGroup, handler *httphandler.UserHandler) {
 	userGroup := rg.Group("/users")
 	{
 		userGroup.GET("", handler.List)
@@ -180,7 +190,7 @@ func (a *App) registerUserRoutes(rg *gin.RouterGroup, handler *user.Handler) {
 }
 
 // registerPowerRoutes 注册电源路由
-func (a *App) registerPowerRoutes(rg *gin.RouterGroup, handler *power.Handler) {
+func (a *App) registerPowerRoutes(rg *gin.RouterGroup, handler *httphandler.PowerHandler) {
 	powerGroup := rg.Group("/powers")
 	{
 		powerGroup.GET("", handler.List)

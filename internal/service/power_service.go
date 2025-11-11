@@ -1,38 +1,40 @@
-package power
+package service
 
 import (
 	"context"
+	"power-supply-sys/internal/domain/power"
+	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
 
 	"gorm.io/gorm"
 )
 
-// Service 电源服务接口
-type Service interface {
-	Create(ctx context.Context, req *PowerSupplyCreateRequest) (*PowerSupply, error)
-	GetByID(ctx context.Context, id uint) (*PowerSupply, error)
-	Update(ctx context.Context, id uint, req *PowerSupplyUpdateRequest) (*PowerSupply, error)
+// PowerService 电源服务接口
+type PowerService interface {
+	Create(ctx context.Context, req *power.PowerSupplyCreateRequest) (*power.PowerSupply, error)
+	GetByID(ctx context.Context, id uint) (*power.PowerSupply, error)
+	Update(ctx context.Context, id uint, req *power.PowerSupplyUpdateRequest) (*power.PowerSupply, error)
 	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context, req *PowerSupplyQueryRequest) ([]*PowerSupply, int64, error)
+	List(ctx context.Context, req *power.PowerSupplyQueryRequest) ([]*power.PowerSupply, int64, error)
 }
 
-// service 电源服务实现
-type service struct {
-	repo Repository
+// powerService 电源服务实现
+type powerService struct {
+	repo repo.PowerRepository
 }
 
-var _ Service = &service{}
+var _ PowerService = &powerService{}
 
-// NewService 创建电源服务
-func NewService(db *gorm.DB) Service {
-	return &service{
-		repo: NewRepository(db),
+// NewPowerService 创建电源服务
+func NewPowerService(db *gorm.DB) PowerService {
+	return &powerService{
+		repo: repo.NewPowerRepository(db),
 	}
 }
 
 // Create 创建电源
-func (s *service) Create(ctx context.Context, req *PowerSupplyCreateRequest) (*PowerSupply, error) {
-	powerSupply := &PowerSupply{
+func (s *powerService) Create(ctx context.Context, req *power.PowerSupplyCreateRequest) (*power.PowerSupply, error) {
+	ps := &power.PowerSupply{
 		Name:        req.Name,
 		Brand:       req.Brand,
 		Model:       req.Model,
@@ -45,26 +47,26 @@ func (s *service) Create(ctx context.Context, req *PowerSupplyCreateRequest) (*P
 		Status:      1,
 	}
 
-	if err := s.repo.Create(ctx, powerSupply); err != nil {
+	if err := s.repo.Create(ctx, ps); err != nil {
 		return nil, err
 	}
 
-	return powerSupply, nil
+	return ps, nil
 }
 
 // GetByID 根据ID获取电源
-func (s *service) GetByID(ctx context.Context, id uint) (*PowerSupply, error) {
+func (s *powerService) GetByID(ctx context.Context, id uint) (*power.PowerSupply, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // Update 更新电源
-func (s *service) Update(ctx context.Context, id uint, req *PowerSupplyUpdateRequest) (*PowerSupply, error) {
-	powerSupply, err := s.repo.FindByID(ctx, id)
+func (s *powerService) Update(ctx context.Context, id uint, req *power.PowerSupplyUpdateRequest) (*power.PowerSupply, error) {
+	ps, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if req.Name != "" {
 		updates["name"] = req.Name
 	}
@@ -97,10 +99,10 @@ func (s *service) Update(ctx context.Context, id uint, req *PowerSupplyUpdateReq
 	}
 
 	if len(updates) == 0 {
-		return powerSupply, nil
+		return ps, nil
 	}
 
-	if err := s.repo.Update(ctx, powerSupply, updates); err != nil {
+	if err := s.repo.Update(ctx, ps, updates); err != nil {
 		return nil, err
 	}
 
@@ -109,16 +111,16 @@ func (s *service) Update(ctx context.Context, id uint, req *PowerSupplyUpdateReq
 }
 
 // Delete 删除电源
-func (s *service) Delete(ctx context.Context, id uint) error {
+func (s *powerService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
 // List 获取电源列表
-func (s *service) List(ctx context.Context, req *PowerSupplyQueryRequest) ([]*PowerSupply, int64, error) {
+func (s *powerService) List(ctx context.Context, req *power.PowerSupplyQueryRequest) ([]*power.PowerSupply, int64, error) {
 	// 构建查询选项
 	page, pageSize := common.GetPageInfo(req.Page, req.PageSize)
 
-	queryOpts := &QueryOptions{
+	queryOpts := &power.QueryOptions{
 		Name:       req.Name,
 		Brand:      req.Brand,
 		MinPower:   req.MinPower,

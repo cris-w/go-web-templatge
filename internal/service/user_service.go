@@ -1,41 +1,43 @@
-package user
+package service
 
 import (
 	"context"
+	"power-supply-sys/internal/domain/user"
+	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-// Service 用户服务接口
-type Service interface {
-	Create(ctx context.Context, req *UserCreateRequest) (*User, error)
-	GetByID(ctx context.Context, id uint) (*User, error)
-	GetByUsername(ctx context.Context, username string) (*User, error)
-	Update(ctx context.Context, id uint, req *UserUpdateRequest) (*User, error)
+// UserService 用户服务接口
+type UserService interface {
+	Create(ctx context.Context, req *user.UserCreateRequest) (*user.User, error)
+	GetByID(ctx context.Context, id uint) (*user.User, error)
+	GetByUsername(ctx context.Context, username string) (*user.User, error)
+	Update(ctx context.Context, id uint, req *user.UserUpdateRequest) (*user.User, error)
 	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context, req *UserQueryRequest) ([]*User, int64, error)
-	Login(ctx context.Context, req *LoginRequest) (*User, error)
+	List(ctx context.Context, req *user.UserQueryRequest) ([]*user.User, int64, error)
+	Login(ctx context.Context, req *user.LoginRequest) (*user.User, error)
 	VerifyPassword(hashedPassword, password string) error
 }
 
-// service 用户服务实现
-type service struct {
-	repo Repository
+// userService 用户服务实现
+type userService struct {
+	repo repo.UserRepository
 }
 
-var _ Service = &service{}
+var _ UserService = &userService{}
 
-// NewService 创建用户服务
-func NewService(db *gorm.DB) Service {
-	return &service{
-		repo: NewRepository(db),
+// NewUserService 创建用户服务
+func NewUserService(db *gorm.DB) UserService {
+	return &userService{
+		repo: repo.NewUserRepository(db),
 	}
 }
 
 // Create 创建用户
-func (s *service) Create(ctx context.Context, req *UserCreateRequest) (*User, error) {
+func (s *userService) Create(ctx context.Context, req *user.UserCreateRequest) (*user.User, error) {
 	// 检查用户名是否已存在
 	existUser, err := s.repo.FindByUsername(ctx, req.Username)
 	if err != nil && !common.IsAppError(err) {
@@ -51,7 +53,7 @@ func (s *service) Create(ctx context.Context, req *UserCreateRequest) (*User, er
 		return nil, common.ErrInternal(err)
 	}
 
-	user := &User{
+	u := &user.User{
 		Username: req.Username,
 		Password: string(hashedPassword),
 		Email:    req.Email,
@@ -61,31 +63,31 @@ func (s *service) Create(ctx context.Context, req *UserCreateRequest) (*User, er
 		Status:   1,
 	}
 
-	if err := s.repo.Create(ctx, user); err != nil {
+	if err := s.repo.Create(ctx, u); err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return u, nil
 }
 
 // GetByID 根据ID获取用户
-func (s *service) GetByID(ctx context.Context, id uint) (*User, error) {
+func (s *userService) GetByID(ctx context.Context, id uint) (*user.User, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // GetByUsername 根据用户名获取用户
-func (s *service) GetByUsername(ctx context.Context, username string) (*User, error) {
+func (s *userService) GetByUsername(ctx context.Context, username string) (*user.User, error) {
 	return s.repo.FindByUsername(ctx, username)
 }
 
 // Update 更新用户
-func (s *service) Update(ctx context.Context, id uint, req *UserUpdateRequest) (*User, error) {
-	user, err := s.repo.FindByID(ctx, id)
+func (s *userService) Update(ctx context.Context, id uint, req *user.UserUpdateRequest) (*user.User, error) {
+	u, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if req.Email != "" {
 		updates["email"] = req.Email
 	}
@@ -103,10 +105,10 @@ func (s *service) Update(ctx context.Context, id uint, req *UserUpdateRequest) (
 	}
 
 	if len(updates) == 0 {
-		return user, nil
+		return u, nil
 	}
 
-	if err := s.repo.Update(ctx, user, updates); err != nil {
+	if err := s.repo.Update(ctx, u, updates); err != nil {
 		return nil, err
 	}
 
@@ -115,16 +117,16 @@ func (s *service) Update(ctx context.Context, id uint, req *UserUpdateRequest) (
 }
 
 // Delete 删除用户
-func (s *service) Delete(ctx context.Context, id uint) error {
+func (s *userService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
 // List 获取用户列表
-func (s *service) List(ctx context.Context, req *UserQueryRequest) ([]*User, int64, error) {
+func (s *userService) List(ctx context.Context, req *user.UserQueryRequest) ([]*user.User, int64, error) {
 	// 构建查询选项
 	page, pageSize := common.GetPageInfo(req.Page, req.PageSize)
 
-	queryOpts := &QueryOptions{
+	queryOpts := &user.QueryOptions{
 		Username: req.Username,
 		Email:    req.Email,
 		Status:   req.Status,
@@ -148,9 +150,9 @@ func (s *service) List(ctx context.Context, req *UserQueryRequest) ([]*User, int
 }
 
 // Login 用户登录
-func (s *service) Login(ctx context.Context, req *LoginRequest) (*User, error) {
+func (s *userService) Login(ctx context.Context, req *user.LoginRequest) (*user.User, error) {
 	// 根据用户名查询用户
-	user, err := s.repo.FindByUsername(ctx, req.Username)
+	u, err := s.repo.FindByUsername(ctx, req.Username)
 	if err != nil {
 		if common.IsAppError(err) {
 			return nil, common.ErrUnauthorized("用户名或密码错误")
@@ -159,20 +161,20 @@ func (s *service) Login(ctx context.Context, req *LoginRequest) (*User, error) {
 	}
 
 	// 验证密码
-	if err := s.VerifyPassword(user.Password, req.Password); err != nil {
+	if err := s.VerifyPassword(u.Password, req.Password); err != nil {
 		return nil, common.ErrUnauthorized("用户名或密码错误")
 	}
 
 	// 检查用户状态
-	if user.Status != 1 {
+	if u.Status != 1 {
 		return nil, common.ErrForbidden("用户已被禁用")
 	}
 
-	return user, nil
+	return u, nil
 }
 
 // VerifyPassword 验证密码
-func (s *service) VerifyPassword(hashedPassword, password string) error {
+func (s *userService) VerifyPassword(hashedPassword, password string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		return err

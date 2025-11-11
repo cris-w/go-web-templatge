@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"power-supply-sys/pkg/common"
 	"power-supply-sys/pkg/logger"
+	httputil "power-supply-sys/internal/transport/http"
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +26,7 @@ func Recovery() gin.HandlerFunc {
 				)
 
 				// 返回统一的错误响应
-				c.JSON(http.StatusInternalServerError, common.Response{
+				c.JSON(http.StatusInternalServerError, httputil.Response{
 					Code:    int(common.ErrCodeInternalError),
 					Message: "服务器内部错误",
 				})
@@ -35,3 +36,4 @@ func Recovery() gin.HandlerFunc {
 		c.Next()
 	}
 }
+

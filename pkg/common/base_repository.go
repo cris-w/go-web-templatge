@@ -55,7 +55,7 @@ func (r *BaseRepository[T]) FindOne(ctx context.Context, opts ...QueryOption) (*
 }
 
 // Update 更新记录
-func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, updates map[string]interface{}) error {
+func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, updates map[string]any) error {
 	if err := r.db.WithContext(ctx).Model(entity).Updates(updates).Error; err != nil {
 		return ErrDatabase(err)
 	}
@@ -63,7 +63,7 @@ func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, updates map[s
 }
 
 // UpdateByID 根据ID更新记录
-func (r *BaseRepository[T]) UpdateByID(ctx context.Context, id uint, updates map[string]interface{}) error {
+func (r *BaseRepository[T]) UpdateByID(ctx context.Context, id uint, updates map[string]any) error {
 	result := r.db.WithContext(ctx).Model(new(T)).Where("id = ?", id).Updates(updates)
 	if result.Error != nil {
 		return ErrDatabase(result.Error)
@@ -162,7 +162,7 @@ func (r *BaseRepository[T]) BatchCreate(ctx context.Context, entities []*T) erro
 }
 
 // BatchUpdate 批量更新记录
-func (r *BaseRepository[T]) BatchUpdate(ctx context.Context, updates map[string]interface{}, opts ...QueryOption) (int64, error) {
+func (r *BaseRepository[T]) BatchUpdate(ctx context.Context, updates map[string]any, opts ...QueryOption) (int64, error) {
 	db := r.db.WithContext(ctx).Model(new(T))
 	db = ApplyQuery(db, opts...)
 

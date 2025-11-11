@@ -52,3 +52,4 @@ func Logger() gin.HandlerFunc {
 		}
 	}
 }
+

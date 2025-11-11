@@ -77,10 +77,10 @@ func (e ErrorCode) GetHTTPStatus() int {
 
 // AppError 应用错误结构
 type AppError struct {
-	Code    ErrorCode   // 业务错误码
-	Message string      // 用户可见的错误消息
-	Err     error       // 底层错误（用于日志，不返回给客户端）
-	Data    interface{} // 附加数据
+	Code    ErrorCode // 业务错误码
+	Message string    // 用户可见的错误消息
+	Err     error     // 底层错误（用于日志，不返回给客户端）
+	Data    any       // 附加数据
 }
 
 // Error 实现 error 接口

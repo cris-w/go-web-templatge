@@ -1,7 +1,9 @@
-package common
+package http
 
 import (
 	"net/http"
+
+	"power-supply-sys/pkg/common"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +18,7 @@ type Response struct {
 // SuccessResponse 成功响应
 func SuccessResponse(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{
-		Code:    int(ErrCodeSuccess),
+		Code:    int(common.ErrCodeSuccess),
 		Message: "success",
 		Data:    data,
 	})
@@ -38,7 +40,7 @@ func HandleError(c *gin.Context, err error) {
 	}
 
 	// 如果是 AppError，使用其中的信息
-	if appErr, ok := err.(*AppError); ok {
+	if appErr, ok := err.(*common.AppError); ok {
 		c.JSON(appErr.Code.GetHTTPStatus(), Response{
 			Code:    int(appErr.Code),
 			Message: appErr.Message,
@@ -49,7 +51,7 @@ func HandleError(c *gin.Context, err error) {
 
 	// 未知错误，返回内部错误
 	c.JSON(http.StatusInternalServerError, Response{
-		Code:    int(ErrCodeInternalError),
+		Code:    int(common.ErrCodeInternalError),
 		Message: "服务器内部错误",
 	})
 }
@@ -70,7 +72,7 @@ type PageResponse struct {
 // SuccessPageResponse 分页成功响应
 func SuccessPageResponse(c *gin.Context, list any, total int64, page, size int) {
 	c.JSON(http.StatusOK, Response{
-		Code:    int(ErrCodeSuccess),
+		Code:    int(common.ErrCodeSuccess),
 		Message: "success",
 		Data: PageResponse{
 			List:  list,
