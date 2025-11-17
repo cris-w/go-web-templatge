@@ -8,30 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepository 用户数据访问层接口
-type UserRepository interface {
-	// 基础 CRUD 方法
-	Create(ctx context.Context, u *user.User) error
-	FindByID(ctx context.Context, id uint) (*user.User, error)
-	FindOne(ctx context.Context, opts ...common.QueryOption) (*user.User, error)
-	Update(ctx context.Context, u *user.User, updates map[string]any) error
-	UpdateByID(ctx context.Context, id uint, updates map[string]any) error
-	Delete(ctx context.Context, id uint) error
-	Exists(ctx context.Context, opts ...common.QueryOption) (bool, error)
-
-	// 自定义方法
-	FindByUsername(ctx context.Context, username string) (*user.User, error)
-	List(ctx context.Context, query *user.QueryOptions) ([]*user.User, error)
-	Count(ctx context.Context, query *user.QueryOptions) (int64, error)
-}
-
-// userRepository 用户数据访问层实现
+// userRepository 用户数据访问层实现（实现 domain 层的 Repository 接口）
 type userRepository struct {
 	*common.BaseRepository[user.User]
 }
 
 // NewUserRepository 创建用户仓储
-func NewUserRepository(db *gorm.DB) UserRepository {
+func NewUserRepository(db *gorm.DB) user.Repository {
 	return &userRepository{
 		BaseRepository: common.NewBaseRepository[user.User](db),
 	}

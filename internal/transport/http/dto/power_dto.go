@@ -1,6 +1,6 @@
-package power
+package dto
 
-// PowerSupplyCreateRequest 创建电源请求
+// PowerSupplyCreateRequest 创建电源请求（DTO 移至传输层）
 type PowerSupplyCreateRequest struct {
 	Name        string  `json:"name" binding:"required,min=1,max=100"`
 	Brand       string  `json:"brand" binding:"omitempty,max=50"`
@@ -39,19 +39,5 @@ type PowerSupplyQueryRequest struct {
 	MaxPrice   *float64 `form:"max_price" binding:"omitempty,min=0"`
 	Efficiency string   `form:"efficiency" binding:"omitempty"`
 	Status     *int     `form:"status" binding:"omitempty,oneof=0 1"`
-}
-
-// QueryOptions 查询选项
-type QueryOptions struct {
-	Name       string
-	Brand      string
-	MinPower   *int
-	MaxPower   *int
-	MinPrice   *float64
-	MaxPrice   *float64
-	Efficiency string
-	Status     *int
-	Page       int
-	PageSize   int
 }
 

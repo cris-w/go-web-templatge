@@ -3,11 +3,9 @@ package service
 import (
 	"context"
 	"power-supply-sys/internal/domain/user"
-	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // UserService 用户服务接口
@@ -24,15 +22,15 @@ type UserService interface {
 
 // userService 用户服务实现
 type userService struct {
-	repo repo.UserRepository
+	repo user.Repository
 }
 
 var _ UserService = &userService{}
 
-// NewUserService 创建用户服务
-func NewUserService(db *gorm.DB) UserService {
+// NewUserService 创建用户服务（接收 Repository 接口而非 GORM）
+func NewUserService(repo user.Repository) UserService {
 	return &userService{
-		repo: repo.NewUserRepository(db),
+		repo: repo,
 	}
 }
 

@@ -2,8 +2,6 @@ package user
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // User 用户模型
@@ -23,10 +21,5 @@ type User struct {
 // TableName 指定表名
 func (User) TableName() string {
 	return "users"
-}
-
-// AutoMigrate 自动迁移用户表结构
-func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(&User{})
 }
 

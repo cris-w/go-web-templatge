@@ -24,15 +24,7 @@ func SuccessResponse(c *gin.Context, data any) {
 	})
 }
 
-// ErrorResponse 错误响应（兼容旧代码）
-func ErrorResponse(c *gin.Context, code int, message string) {
-	c.JSON(http.StatusOK, Response{
-		Code:    code,
-		Message: message,
-	})
-}
-
-// HandleError 统一错误处理（推荐使用）
+// HandleError 统一错误处理
 func HandleError(c *gin.Context, err error) {
 	if err == nil {
 		SuccessResponse(c, nil)
@@ -40,7 +32,8 @@ func HandleError(c *gin.Context, err error) {
 	}
 
 	// 如果是 AppError，使用其中的信息
-	if appErr, ok := err.(*common.AppError); ok {
+	if common.IsAppError(err) {
+		appErr := err.(*common.AppError)
 		c.JSON(appErr.Code.GetHTTPStatus(), Response{
 			Code:    int(appErr.Code),
 			Message: appErr.Message,

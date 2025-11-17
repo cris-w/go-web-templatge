@@ -1,6 +1,8 @@
-package user
+package dto
 
-// UserCreateRequest 创建用户请求
+import "power-supply-sys/internal/domain/user"
+
+// UserCreateRequest 创建用户请求（DTO 移至传输层）
 type UserCreateRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Password string `json:"password" binding:"required,min=6"`
@@ -36,16 +38,7 @@ type LoginRequest struct {
 
 // LoginResponse 登录响应
 type LoginResponse struct {
-	Token string `json:"token"`
-	User  *User  `json:"user"`
-}
-
-// QueryOptions 查询选项
-type QueryOptions struct {
-	Username string
-	Email    string
-	Status   *int
-	Page     int
-	PageSize int
+	Token string      `json:"token"`
+	User  *user.User  `json:"user"`
 }
 

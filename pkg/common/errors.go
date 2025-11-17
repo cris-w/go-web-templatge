@@ -186,11 +186,3 @@ func IsAppError(err error) bool {
 	_, ok := err.(*AppError)
 	return ok
 }
-
-// GetAppError 获取应用错误
-func GetAppError(err error) *AppError {
-	if appErr, ok := err.(*AppError); ok {
-		return appErr
-	}
-	return ErrInternal(err)
-}

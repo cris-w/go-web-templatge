@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"power-supply-sys/internal/domain/power"
+	dbpkg "power-supply-sys/internal/infra/db"
 	"power-supply-sys/pkg/common"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestPowerRepository_Create(t *testing.T) {
 	defer common.TeardownTestDB(t, db)
 
 	// 迁移表结构
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)
@@ -44,7 +45,7 @@ func TestPowerRepository_FindByID(t *testing.T) {
 	db := common.SetupTestDB(t)
 	defer common.TeardownTestDB(t, db)
 
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)
@@ -81,7 +82,7 @@ func TestPowerRepository_Update(t *testing.T) {
 	db := common.SetupTestDB(t)
 	defer common.TeardownTestDB(t, db)
 
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)
@@ -122,7 +123,7 @@ func TestPowerRepository_Delete(t *testing.T) {
 	db := common.SetupTestDB(t)
 	defer common.TeardownTestDB(t, db)
 
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)
@@ -153,7 +154,7 @@ func TestPowerRepository_List(t *testing.T) {
 	db := common.SetupTestDB(t)
 	defer common.TeardownTestDB(t, db)
 
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)
@@ -234,7 +235,7 @@ func TestPowerRepository_Count(t *testing.T) {
 	db := common.SetupTestDB(t)
 	defer common.TeardownTestDB(t, db)
 
-	err := power.AutoMigrate(db)
+	err := dbpkg.Migrate(db)
 	require.NoError(t, err)
 
 	repo := NewPowerRepository(db)

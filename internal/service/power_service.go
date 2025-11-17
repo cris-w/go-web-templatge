@@ -3,10 +3,7 @@ package service
 import (
 	"context"
 	"power-supply-sys/internal/domain/power"
-	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
-
-	"gorm.io/gorm"
 )
 
 // PowerService 电源服务接口
@@ -20,15 +17,15 @@ type PowerService interface {
 
 // powerService 电源服务实现
 type powerService struct {
-	repo repo.PowerRepository
+	repo power.Repository
 }
 
 var _ PowerService = &powerService{}
 
-// NewPowerService 创建电源服务
-func NewPowerService(db *gorm.DB) PowerService {
+// NewPowerService 创建电源服务（接收 Repository 接口而非 GORM）
+func NewPowerService(repo power.Repository) PowerService {
 	return &powerService{
-		repo: repo.NewPowerRepository(db),
+		repo: repo,
 	}
 }
 

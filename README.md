@@ -25,38 +25,48 @@ power-supply-sys/
 ├── internal/              # 内部应用代码（不对外暴露）
 │   ├── app/               # 应用装配与启动
 │   │   ├── app.go         # App 结构体（核心）
-│   │   └── config.go      # 配置管理
-│   ├── domain/            # 领域模型（无基础设施依赖）
+│   │   ├── config.go      # 配置管理
+│   │   └── container.go   # 依赖注入容器
+│   ├── domain/            # 领域层（无基础设施依赖）
 │   │   ├── user/
-│   │   │   ├── model.go   # 用户模型
-│   │   │   └── dto.go     # 数据传输对象
+│   │   │   ├── model.go        # 用户领域模型
+│   │   │   ├── repository.go   # Repository 接口定义
+│   │   │   ├── query.go        # 查询选项
+│   │   │   └── service_types.go # Service 层类型
 │   │   └── power/
-│   │       ├── model.go   # 电源模型
-│   │       └── dto.go     # 数据传输对象
-│   ├── service/           # 领域服务（依赖接口）
+│   │       ├── model.go        # 电源领域模型
+│   │       ├── repository.go   # Repository 接口定义
+│   │       ├── query.go        # 查询选项
+│   │       └── service_types.go # Service 层类型
+│   ├── service/           # 服务层（依赖接口）
 │   │   ├── user_service.go
 │   │   ├── user_service_test.go
 │   │   ├── power_service.go
 │   │   └── power_service_test.go
-│   ├── infra/             # 基础设施实现
+│   ├── infra/             # 基础设施层
 │   │   ├── db/
-│   │   │   └── database.go # 数据库初始化
+│   │   │   ├── database.go  # 数据库初始化
+│   │   │   └── migrations.go # 数据库迁移
 │   │   └── repo/
-│   │       ├── user_repo.go
+│   │       ├── user_repo.go      # Repository 实现
 │   │       ├── user_repo_test.go
-│   │       ├── power_repo.go
+│   │       ├── power_repo.go     # Repository 实现
 │   │       └── power_repo_test.go
 │   └── transport/         # 传输层
 │       └── http/
-│           ├── handler/    # HTTP 处理器
+│           ├── dto/              # 数据传输对象（DTO）
+│           │   ├── user_dto.go
+│           │   └── power_dto.go
+│           ├── handler/          # HTTP 处理器
 │           │   ├── user_handler.go
 │           │   └── power_handler.go
-│           ├── middleware/  # HTTP 中间件
-│           │   ├── auth.go      # JWT 认证
-│           │   ├── cors.go      # CORS 跨域
-│           │   ├── logger.go    # 日志中间件
-│           │   └── recovery.go  # 错误恢复
-│           └── response.go      # 统一响应
+│           ├── middleware/       # HTTP 中间件
+│           │   ├── auth.go          # JWT 认证
+│           │   ├── cors.go          # CORS 跨域
+│           │   ├── logger.go        # 日志中间件
+│           │   ├── recovery.go      # 错误恢复
+│           │   └── error_handler.go # 统一错误处理
+│           └── response.go          # 统一响应
 ├── pkg/                   # 可被外部导入的库
 │   ├── auth/              # JWT 认证库
 │   ├── logger/            # 日志库
@@ -76,37 +86,51 @@ power-supply-sys/
 
 ### 分层架构
 
-项目采用清晰的分层架构，符合 Go 社区最佳实践：
+项目采用清晰的分层架构，符合 Go 社区最佳实践和 SOLID 原则：
 
 1. **Domain Layer（领域层）**：`internal/domain/`
 
-   - 包含领域模型和 DTO
-   - 无基础设施依赖，保持纯净
+   - 包含领域模型、Repository 接口定义、查询选项
+   - **无基础设施依赖**，保持领域层纯净
+   - Repository 接口定义在领域层，实现依赖倒置原则
 
 2. **Service Layer（服务层）**：`internal/service/`
 
    - 实现业务逻辑
-   - 依赖仓储接口，不直接依赖数据库
+   - **依赖 Repository 接口**，不直接依赖数据库或具体实现
+   - 接收领域类型，与传输层解耦
 
 3. **Infrastructure Layer（基础设施层）**：`internal/infra/`
 
    - 数据库初始化：`internal/infra/db/`
-   - 仓储实现：`internal/infra/repo/`
+   - 数据库迁移：`internal/infra/db/migrations.go`
+   - Repository 实现：`internal/infra/repo/`（实现 Domain 层定义的接口）
 
 4. **Transport Layer（传输层）**：`internal/transport/http/`
 
+   - DTO 定义：`internal/transport/http/dto/`（请求/响应对象）
    - HTTP 处理器、中间件、响应封装
-   - 与业务逻辑解耦
+   - 负责 DTO 与领域对象的转换
 
 5. **Application Layer（应用层）**：`internal/app/`
    - 应用装配、配置管理、生命周期管理
+   - 依赖注入容器：统一管理所有依赖
 
 ### 设计原则
 
-- **依赖倒置**：服务层依赖接口，不依赖具体实现
-- **单一职责**：每个包职责明确
-- **接口隔离**：接口设计精简，避免臃肿
-- **测试友好**：支持单元测试和集成测试
+- **依赖倒置（DIP）**：Service 层依赖 Repository 接口（定义在 Domain 层），不依赖具体实现
+- **单一职责（SRP）**：每个包职责明确，Domain 层无基础设施依赖
+- **接口隔离（ISP）**：Repository 接口拆分为 Reader 和 Writer，符合接口隔离原则
+- **开闭原则（OCP）**：通过接口扩展，对修改关闭，对扩展开放
+- **测试友好**：所有依赖可轻松 mock，支持单元测试和集成测试
+
+### 架构特点
+
+- ✅ **Repository 接口在 Domain 层**：符合依赖倒置原则
+- ✅ **DTO 在 Transport 层**：传输层关注点分离
+- ✅ **依赖注入容器**：统一管理依赖，易于测试和维护
+- ✅ **接口隔离**：Reader/Writer 接口分离，职责清晰
+- ✅ **无全局状态**：所有依赖通过容器注入
 
 ## 功能特性
 
@@ -122,10 +146,13 @@ power-supply-sys/
 ### 架构特性
 
 - ✅ **分层架构**：Handler → Service → Repository → Model
-- ✅ **依赖注入**：松耦合，易测试
+- ✅ **依赖注入**：通过 Container 统一管理，松耦合，易测试
+- ✅ **依赖倒置**：Service 层依赖接口，Repository 接口定义在 Domain 层
+- ✅ **接口隔离**：Repository 接口拆分为 Reader 和 Writer
 - ✅ **上下文传递**：支持超时和取消
 - ✅ **生命周期管理**：优雅启动和关闭
-- ✅ **领域驱动设计**：清晰的领域边界
+- ✅ **领域驱动设计**：清晰的领域边界，Domain 层无基础设施依赖
+- ✅ **统一错误处理**：错误处理中间件，统一错误响应格式
 
 ### 认证与安全
 
@@ -147,6 +174,7 @@ power-supply-sys/
 - ✅ **错误分类**：客户端错误 vs 服务端错误
 - ✅ **错误链**：支持错误包装和追踪
 - ✅ **自动恢复**：Panic 自动恢复
+- ✅ **错误处理中间件**：统一错误处理，自动转换错误响应
 
 ## 快速开始
 
@@ -251,11 +279,42 @@ docker-compose up -d
 
 ### 添加新功能模块
 
-1. 在 `internal/domain/` 创建领域模型和 DTO
-2. 在 `internal/infra/repo/` 实现仓储接口
-3. 在 `internal/service/` 实现业务逻辑
-4. 在 `internal/transport/http/handler/` 创建处理器
-5. 在 `internal/app/app.go` 注册路由
+遵循分层架构和依赖倒置原则：
+
+1. **Domain 层**（`internal/domain/{module}/`）
+
+   - 创建 `model.go`：定义领域模型
+   - 创建 `repository.go`：定义 Repository 接口（Reader/Writer）
+   - 创建 `query.go`：定义查询选项
+   - 创建 `service_types.go`：定义 Service 层使用的请求类型
+
+2. **Infrastructure 层**（`internal/infra/`）
+
+   - 在 `db/migrations.go` 中添加模型迁移
+   - 在 `repo/` 中实现 Repository 接口
+
+3. **Service 层**（`internal/service/`）
+
+   - 实现业务逻辑，依赖 Repository 接口（而非具体实现）
+   - Service 构造函数接收 Repository 接口
+
+4. **Transport 层**（`internal/transport/http/`）
+
+   - 在 `dto/` 中定义请求/响应 DTO
+   - 在 `handler/` 中实现 HTTP 处理器
+   - Handler 负责 DTO 与领域对象的转换
+
+5. **Application 层**（`internal/app/`）
+   - 在 `container.go` 中注册新依赖
+   - 在 `app.go` 中注册路由
+
+### 架构最佳实践
+
+- **Domain 层**：保持纯净，无基础设施依赖，只包含领域概念
+- **Repository 接口**：定义在 Domain 层，实现依赖倒置
+- **DTO**：定义在 Transport 层，负责传输层的数据格式
+- **依赖注入**：通过 Container 统一管理，避免全局状态
+- **接口隔离**：Repository 接口拆分为 Reader/Writer，按需实现
 
 ### 代码规范
 

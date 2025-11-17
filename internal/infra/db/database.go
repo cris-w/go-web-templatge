@@ -11,8 +11,6 @@ import (
 	gormLogger "gorm.io/gorm/logger"
 )
 
-var database *gorm.DB
-
 // Config 数据库配置
 type Config struct {
 	DSN             string
@@ -24,7 +22,6 @@ type Config struct {
 
 // InitDatabase 初始化数据库连接并返回数据库实例
 func InitDatabase(config *Config) (*gorm.DB, error) {
-	var err error
 	var loggerConfig gormLogger.Interface
 
 	if config.Debug {
@@ -33,7 +30,7 @@ func InitDatabase(config *Config) (*gorm.DB, error) {
 		loggerConfig = gormLogger.Default.LogMode(gormLogger.Error)
 	}
 
-	database, err = gorm.Open(mysql.Open(config.DSN), &gorm.Config{
+	database, err := gorm.Open(mysql.Open(config.DSN), &gorm.Config{
 		Logger: loggerConfig,
 	})
 	if err != nil {

@@ -3,10 +3,11 @@ package handler
 import (
 	"power-supply-sys/internal/domain/user"
 	"power-supply-sys/internal/service"
+	httputil "power-supply-sys/internal/transport/http"
+	"power-supply-sys/internal/transport/http/dto"
 	"power-supply-sys/pkg/auth"
 	"power-supply-sys/pkg/common"
 	"power-supply-sys/pkg/logger"
-	httputil "power-supply-sys/internal/transport/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -29,18 +30,27 @@ func NewUserHandler(userService service.UserService, jwtManager *auth.JWTManager
 // Create 创建用户
 func (h *UserHandler) Create(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req user.UserCreateRequest
+	var req dto.UserCreateRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Warn("Invalid request parameters", zap.Error(err))
-		httputil.HandleError(c, common.ErrInvalidParam("参数格式错误"))
+		c.Error(common.ErrInvalidParam("参数格式错误"))
 		return
 	}
 
-	u, err := h.service.Create(ctx, &req)
+	// 转换 DTO 为 Service 层需要的格式
+	serviceReq := &user.UserCreateRequest{
+		Username: req.Username,
+		Password: req.Password,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Nickname: req.Nickname,
+		Avatar:   req.Avatar,
+	}
+	u, err := h.service.Create(ctx, serviceReq)
 	if err != nil {
 		logger.Error("Failed to create user", zap.Error(err), zap.String("username", req.Username))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -54,14 +64,14 @@ func (h *UserHandler) Get(c *gin.Context) {
 
 	id, err := common.ParseUintParam(c, "id")
 	if err != nil {
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
 	u, err := h.service.GetByID(ctx, id)
 	if err != nil {
 		logger.Warn("User not found", zap.Uint("user_id", id), zap.Error(err))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -74,21 +84,29 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	id, err := common.ParseUintParam(c, "id")
 	if err != nil {
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
-	var req user.UserUpdateRequest
+	var req dto.UserUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Warn("Invalid request parameters", zap.Error(err))
-		httputil.HandleError(c, common.ErrInvalidParam("参数格式错误"))
+		c.Error(common.ErrInvalidParam("参数格式错误"))
 		return
 	}
 
-	u, err := h.service.Update(ctx, id, &req)
+	// 转换 DTO 为 Service 层需要的格式
+	serviceReq := &user.UserUpdateRequest{
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Nickname: req.Nickname,
+		Avatar:   req.Avatar,
+		Status:   req.Status,
+	}
+	u, err := h.service.Update(ctx, id, serviceReq)
 	if err != nil {
 		logger.Error("Failed to update user", zap.Uint("user_id", id), zap.Error(err))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -102,13 +120,13 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	id, err := common.ParseUintParam(c, "id")
 	if err != nil {
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
 	if err := h.service.Delete(ctx, id); err != nil {
 		logger.Error("Failed to delete user", zap.Uint("user_id", id), zap.Error(err))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -119,18 +137,26 @@ func (h *UserHandler) Delete(c *gin.Context) {
 // List 获取用户列表
 func (h *UserHandler) List(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req user.UserQueryRequest
+	var req dto.UserQueryRequest
 
 	if err := c.ShouldBindQuery(&req); err != nil {
 		logger.Warn("Invalid query parameters", zap.Error(err))
-		httputil.HandleError(c, common.ErrInvalidParam("查询参数错误"))
+		c.Error(common.ErrInvalidParam("查询参数错误"))
 		return
 	}
 
-	users, total, err := h.service.List(ctx, &req)
+	// 转换 DTO 为 Service 层需要的格式
+	serviceReq := &user.UserQueryRequest{
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Username: req.Username,
+		Email:    req.Email,
+		Status:   req.Status,
+	}
+	users, total, err := h.service.List(ctx, serviceReq)
 	if err != nil {
 		logger.Error("Failed to list users", zap.Error(err))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -141,41 +167,45 @@ func (h *UserHandler) List(c *gin.Context) {
 // Login 用户登录
 func (h *UserHandler) Login(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req user.LoginRequest
+	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Warn("Invalid login request", zap.Error(err))
-		httputil.HandleError(c, common.ErrInvalidParam("参数格式错误"))
+		c.Error(common.ErrInvalidParam("参数格式错误"))
 		return
 	}
 
+	// 转换 DTO 为 Service 层需要的格式
+	serviceReq := &user.LoginRequest{
+		Username: req.Username,
+		Password: req.Password,
+	}
 	// 验证用户名和密码
-	u, err := h.service.Login(ctx, &req)
+	u, err := h.service.Login(ctx, serviceReq)
 	if err != nil {
 		logger.Warn("Login failed", zap.String("username", req.Username), zap.Error(err))
-		httputil.HandleError(c, err)
+		c.Error(err)
 		return
 	}
 
 	// 生成 JWT token
 	if h.jwtManager == nil {
 		logger.Error("JWT manager not initialized")
-		httputil.HandleError(c, common.ErrInternal(nil))
+		c.Error(common.ErrInternal(nil))
 		return
 	}
 
 	token, err := h.jwtManager.GenerateToken(u.ID, u.Username)
 	if err != nil {
 		logger.Error("Failed to generate token", zap.Error(err))
-		httputil.HandleError(c, common.ErrInternal(err))
+		c.Error(common.ErrInternal(err))
 		return
 	}
 
 	logger.Info("User logged in successfully", zap.Uint("user_id", u.ID), zap.String("username", u.Username))
 
-	httputil.HandleSuccess(c, user.LoginResponse{
+	httputil.HandleSuccess(c, dto.LoginResponse{
 		Token: token,
 		User:  u,
 	})
 }
-

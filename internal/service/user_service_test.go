@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"power-supply-sys/internal/domain/user"
+	"power-supply-sys/internal/infra/db"
+	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
 	"testing"
 
@@ -12,13 +14,14 @@ import (
 )
 
 func TestUserService_Create(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	t.Run("成功创建用户", func(t *testing.T) {
@@ -61,13 +64,14 @@ func TestUserService_Create(t *testing.T) {
 }
 
 func TestUserService_GetByID(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建测试用户
@@ -95,13 +99,14 @@ func TestUserService_GetByID(t *testing.T) {
 }
 
 func TestUserService_GetByUsername(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建测试用户
@@ -128,13 +133,14 @@ func TestUserService_GetByUsername(t *testing.T) {
 }
 
 func TestUserService_Update(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建测试用户
@@ -170,13 +176,14 @@ func TestUserService_Update(t *testing.T) {
 }
 
 func TestUserService_Delete(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建测试用户
@@ -198,13 +205,14 @@ func TestUserService_Delete(t *testing.T) {
 }
 
 func TestUserService_List(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建多个测试用户
@@ -252,13 +260,14 @@ func TestUserService_List(t *testing.T) {
 }
 
 func TestUserService_Login(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := user.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewUserService(db)
+	userRepo := repo.NewUserRepository(gormDB)
+	service := NewUserService(userRepo)
 	ctx := context.Background()
 
 	// 创建测试用户

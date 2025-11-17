@@ -8,29 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// PowerRepository 电源数据访问层接口
-type PowerRepository interface {
-	// 基础 CRUD 方法
-	Create(ctx context.Context, ps *power.PowerSupply) error
-	FindByID(ctx context.Context, id uint) (*power.PowerSupply, error)
-	FindOne(ctx context.Context, opts ...common.QueryOption) (*power.PowerSupply, error)
-	Update(ctx context.Context, ps *power.PowerSupply, updates map[string]any) error
-	UpdateByID(ctx context.Context, id uint, updates map[string]any) error
-	Delete(ctx context.Context, id uint) error
-	Exists(ctx context.Context, opts ...common.QueryOption) (bool, error)
-
-	// 自定义方法
-	List(ctx context.Context, query *power.QueryOptions) ([]*power.PowerSupply, error)
-	Count(ctx context.Context, query *power.QueryOptions) (int64, error)
-}
-
-// powerRepository 电源数据访问层实现
+// powerRepository 电源数据访问层实现（实现 domain 层的 Repository 接口）
 type powerRepository struct {
 	*common.BaseRepository[power.PowerSupply]
 }
 
 // NewPowerRepository 创建电源仓储
-func NewPowerRepository(db *gorm.DB) PowerRepository {
+func NewPowerRepository(db *gorm.DB) power.Repository {
 	return &powerRepository{
 		BaseRepository: common.NewBaseRepository[power.PowerSupply](db),
 	}

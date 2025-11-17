@@ -45,8 +45,6 @@ type ServerConfig struct {
 	IdleTimeout  int `mapstructure:"idle_timeout"`  // 秒
 }
 
-var GlobalConfig *Config
-
 // LoadConfig 加载配置文件
 func LoadConfig() (*Config, error) {
 	// 获取环境变量，默认为 dev
@@ -70,7 +68,6 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
-	GlobalConfig = &config
 	return &config, nil
 }
 

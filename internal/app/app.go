@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"power-supply-sys/internal/domain/power"
-	"power-supply-sys/internal/domain/user"
 	"power-supply-sys/internal/infra/db"
-	"power-supply-sys/internal/service"
 	httputil "power-supply-sys/internal/transport/http"
 	httphandler "power-supply-sys/internal/transport/http/handler"
 	httpmiddleware "power-supply-sys/internal/transport/http/middleware"
@@ -21,10 +18,11 @@ import (
 
 // App 应用结构体
 type App struct {
-	config *Config
-	db     *gorm.DB
-	router *gin.Engine
-	server *http.Server
+	config    *Config
+	db        *gorm.DB
+	container *Container
+	router    *gin.Engine
+	server    *http.Server
 }
 
 // New 创建新的应用实例
@@ -59,13 +57,17 @@ func New() (*App, error) {
 	app.db = database
 	logger.Info("Database initialized successfully")
 
-	// 4. 执行数据库迁移
-	if err := app.migrate(); err != nil {
+	// 4. 执行数据库迁移（迁移逻辑移至基础设施层）
+	if err := db.Migrate(database); err != nil {
 		return nil, fmt.Errorf("数据库迁移失败: %w", err)
 	}
 	logger.Info("Database migration completed")
 
-	// 5. 设置路由
+	// 5. 创建依赖容器
+	app.container = NewContainer(config, database)
+	logger.Info("Dependency container initialized")
+
+	// 6. 设置路由
 	app.setupRouter()
 	logger.Info("Router setup completed")
 
@@ -84,21 +86,6 @@ func (a *App) initLogger() error {
 		Debug:      a.config.Debug,
 	}
 	return logger.Init(logConfig)
-}
-
-// migrate 执行数据库迁移
-func (a *App) migrate() error {
-	// 迁移用户表
-	if err := user.AutoMigrate(a.db); err != nil {
-		return fmt.Errorf("用户表迁移失败: %w", err)
-	}
-
-	// 迁移电源表
-	if err := power.AutoMigrate(a.db); err != nil {
-		return fmt.Errorf("电源表迁移失败: %w", err)
-	}
-
-	return nil
 }
 
 // healthCheckHandler 健康检查处理函数
@@ -130,18 +117,17 @@ func (a *App) setupRouter() {
 	r.Use(httpmiddleware.Logger())
 	r.Use(httpmiddleware.Recovery())
 	r.Use(httpmiddleware.CORS())
+	r.Use(httpmiddleware.ErrorHandler())
 
 	// 健康检查
 	r.GET("/health", a.healthCheckHandler)
 
-	// 创建 JWT 管理器（依赖注入）
-	jwtManager := auth.NewJWTManager(a.config.JWT.Secret, a.config.JWT.ExpireHours)
+	// 从容器获取依赖
+	userService := a.container.UserService
+	powerService := a.container.PowerService
+	jwtManager := a.container.JWTManager
 
-	// 初始化 Services（整个应用共享）
-	userService := service.NewUserService(a.db)
-	powerService := service.NewPowerService(a.db)
-
-	// 初始化 Handlers（整个应用共享）
+	// 初始化 Handlers（从容器获取依赖）
 	userHandler := httphandler.NewUserHandler(userService, jwtManager)
 	powerHandler := httphandler.NewPowerHandler(powerService)
 

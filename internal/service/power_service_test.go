@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"power-supply-sys/internal/domain/power"
+	"power-supply-sys/internal/infra/db"
+	"power-supply-sys/internal/infra/repo"
 	"power-supply-sys/pkg/common"
 	"testing"
 
@@ -11,13 +13,14 @@ import (
 )
 
 func TestPowerService_Create(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := power.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewPowerService(db)
+	powerRepo := repo.NewPowerRepository(gormDB)
+	service := NewPowerService(powerRepo)
 	ctx := context.Background()
 
 	t.Run("成功创建电源", func(t *testing.T) {
@@ -45,13 +48,14 @@ func TestPowerService_Create(t *testing.T) {
 }
 
 func TestPowerService_GetByID(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := power.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewPowerService(db)
+	powerRepo := repo.NewPowerRepository(gormDB)
+	service := NewPowerService(powerRepo)
 	ctx := context.Background()
 
 	// 创建测试电源
@@ -79,13 +83,14 @@ func TestPowerService_GetByID(t *testing.T) {
 }
 
 func TestPowerService_Update(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := power.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewPowerService(db)
+	powerRepo := repo.NewPowerRepository(gormDB)
+	service := NewPowerService(powerRepo)
 	ctx := context.Background()
 
 	// 创建测试电源
@@ -140,13 +145,14 @@ func TestPowerService_Update(t *testing.T) {
 }
 
 func TestPowerService_Delete(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := power.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewPowerService(db)
+	powerRepo := repo.NewPowerRepository(gormDB)
+	service := NewPowerService(powerRepo)
 	ctx := context.Background()
 
 	// 创建测试电源
@@ -169,13 +175,14 @@ func TestPowerService_Delete(t *testing.T) {
 }
 
 func TestPowerService_List(t *testing.T) {
-	db := common.SetupTestDB(t)
-	defer common.TeardownTestDB(t, db)
+	gormDB := common.SetupTestDB(t)
+	defer common.TeardownTestDB(t, gormDB)
 
-	err := power.AutoMigrate(db)
+	err := db.Migrate(gormDB)
 	require.NoError(t, err)
 
-	service := NewPowerService(db)
+	powerRepo := repo.NewPowerRepository(gormDB)
+	service := NewPowerService(powerRepo)
 	ctx := context.Background()
 
 	// 创建多个测试电源

@@ -2,8 +2,6 @@ package power
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // PowerSupply 电源模型
@@ -26,10 +24,5 @@ type PowerSupply struct {
 // TableName 指定表名
 func (PowerSupply) TableName() string {
 	return "power_supplies"
-}
-
-// AutoMigrate 自动迁移电源表结构
-func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(&PowerSupply{})
 }
 
